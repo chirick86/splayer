@@ -1,4 +1,6 @@
-from .catalog import resolve_track_uris_for_add
+import time
+
+from .catalog import resolve_spotify_uri, resolve_track_uris_for_add
 from .config import load_config, update_config
 from .spotify import ensure_device, get_client, spotify_call
 from .uri_input import chunked, load_track_uris
@@ -200,6 +202,24 @@ def add_track_to_playlist(playlist_ref, track_ref):
     print(f'Added {len(track_uris)} track(s) to playlist: {playlist["name"]}')
 
 
+def add_album_to_playlist(playlist_ref, album_ref):
+    sp = get_client()
+    playlist = _resolve_target_playlist(sp, playlist_ref)
+
+    if not playlist:
+        print("No target playlist selected")
+        return
+
+    album_uri = resolve_spotify_uri(album_ref, "album", sp=sp)
+    track_uris = resolve_track_uris_for_add(album_uri, sp=sp)
+
+    for chunk in _chunked(track_uris, 100):
+        spotify_call(sp.playlist_add_items, playlist["uri"], chunk)
+
+    print(
+        f'Added album ({len(track_uris)} track(s)) to playlist: {playlist["name"]}')
+
+
 def add_uris_to_playlist(playlist_ref, uri_source):
     sp = get_client()
     playlist = _resolve_target_playlist(sp, playlist_ref)
@@ -208,10 +228,45 @@ def add_uris_to_playlist(playlist_ref, uri_source):
         print("No target playlist selected")
         return
 
-    track_uris = load_track_uris(uri_source)
+    source_uris = load_track_uris(uri_source)
+    track_uris = []
+    seen = set()
+    skipped_sources = []
 
-    for chunk in chunked(track_uris, 100):
+    for source_uri in source_uris:
+        try:
+            resolved_uris = resolve_track_uris_for_add(source_uri, sp=sp)
+        except ValueError as exc:
+            skipped_sources.append((source_uri, str(exc)))
+            continue
+
+        for track_uri in resolved_uris:
+            if track_uri in seen:
+                continue
+            seen.add(track_uri)
+            track_uris.append(track_uri)
+
+    if skipped_sources:
+        print(f"Skipped {len(skipped_sources)} source URI(s):")
+        for source_uri, reason in skipped_sources:
+            print(f"- {source_uri}: {reason}")
+
+    if not track_uris:
+        print("No track URIs resolved from provided sources")
+        return
+
+    total = len(track_uris)
+    print("adding uris...")
+
+    chunks = list(chunked(track_uris, 100))
+    for index, chunk in enumerate(chunks):
         spotify_call(sp.playlist_add_items, playlist["uri"], chunk)
+        added = min((index + 1) * 100, total)
+        print(f"\radded {added}/{total}", end="", flush=True)
+        if index < len(chunks) - 1:
+            time.sleep(1)
+
+    print()
 
     print(f'Added {len(track_uris)} track(s) to playlist: {playlist["name"]}')
 
