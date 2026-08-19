@@ -53,10 +53,13 @@ def load_track_uris(source):
         value = str(item).strip()
         if not value:
             continue
-        uris.append(ensure_spotify_uri(value, allowed_types=("track",)))
+        uris.append(
+            ensure_spotify_uri(value, allowed_types=(
+                "track", "album", "artist"))
+        )
 
     if not uris:
-        raise ValueError("No track URIs provided")
+        raise ValueError("No Spotify URIs provided")
 
     return uris
 

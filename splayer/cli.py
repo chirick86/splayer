@@ -18,6 +18,7 @@ from .playlist import (
     create_playlist,
     print_playlist_tracks,
     add_track_to_playlist,
+    add_album_to_playlist,
     add_uris_to_playlist,
     add_to_active_playlist,
     add_current_track_to_playlist,
@@ -113,6 +114,8 @@ def cmd_list(args):
             add_track_to_playlist(args.playlist, args.add)
         else:
             add_to_active_playlist(args.add)
+    elif args.add_album:
+        add_album_to_playlist(args.playlist, args.add_album)
     elif args.tracks:
         print_playlist_tracks(args.tracks)
     elif args.add_uris:
@@ -287,6 +290,11 @@ def main():
         "--default", metavar="PLAYLIST", help="Set default playlist by index, name, or URI")
     playlist_actions.add_argument(
         "--add", metavar="QUERY", help="Add track(s) by name, URL, or URI; supports: splayer list <playlist> --add <query>")
+    playlist_actions.add_argument(
+        "--add-album",
+        metavar="ALBUM",
+        help="Add album by album name, URL, or URI to the active or selected playlist",
+    )
     playlist_actions.add_argument(
         "--tracks", metavar="PLAYLIST", help="Show tracks in a playlist by index, name, or URI")
     playlist_actions.add_argument(
